@@ -55,13 +55,17 @@
             </span>
             <input 
               type="text" 
-              v-model="form.nip" 
+              v-model="form.nip"
+              @input="handleNipInput"
               required
               placeholder="Contoh: 198501012010011001"
-              class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+              :class="[
+                'w-full pl-10 pr-4 py-2.5 rounded-lg border outline-none transition text-sm',
+                nipError ? 'border-red-300 focus:ring-2 focus:ring-red-500 focus:border-red-500' : 'border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+              ]"
             >
           </div>
-          <p class="text-xs text-slate-400 mt-1">Ketik NIP tanpa spasi (jika tidak memiliki NIP, isi dengan tanda strip "-" atau NIK).</p>
+          <p :class="['text-xs mt-1', nipError ? 'text-red-500' : 'text-slate-400']">Masukkan dengan format NIP yang benar</p>
         </div>
 
         <!-- Input Nama Lengkap -->
@@ -280,6 +284,86 @@
           <span>{{ isSubmitting ? 'Mengunggah & Menyimpan Data...' : 'Kirim Sertifikat' }}</span>
         </button>
       </form>
+    </div>
+
+    <!-- POPUP NOTIFIKASI SUKSES -->
+    <div v-if="showSuccessModal && submittedRecord" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="bg-emerald-500 px-6 py-4 text-white flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+              <i class="fa-solid fa-circle-check text-xl"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-lg">Berhasil Terkirim</h3>
+              <p class="text-xs text-emerald-100">Data Anda berhasil disimpan</p>
+            </div>
+          </div>
+          <button type="button" @click="closeSuccessModal" class="text-emerald-100 hover:text-white transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <div class="p-5">
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-bold text-slate-800">Bukti Pengiriman</h4>
+              <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">Terkirim</span>
+            </div>
+
+            <div class="space-y-2 text-sm text-slate-600">
+              <div class="flex justify-between gap-3"><span class="text-slate-500">Nama</span><span class="font-semibold text-slate-800 text-right">{{ submittedRecord.nama }}</span></div>
+              <div class="flex justify-between gap-3"><span class="text-slate-500">NIP</span><span class="font-semibold text-slate-800 text-right">{{ submittedRecord.nip }}</span></div>
+              <div class="flex justify-between gap-3"><span class="text-slate-500">Status</span><span class="font-semibold text-slate-800 text-right">{{ submittedRecord.status }}</span></div>
+              <div class="flex justify-between gap-3"><span class="text-slate-500">Tempat Tugas</span><span class="font-semibold text-slate-800 text-right">{{ submittedRecord.tempatTugas }}</span></div>
+              <div class="flex justify-between gap-3"><span class="text-slate-500">Jumlah Sertifikat</span><span class="font-semibold text-slate-800 text-right">{{ submittedRecord.jumlahSertifikat }}</span></div>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-2">
+            <button type="button" @click="closeSuccessModal" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 px-4 rounded-xl transition">
+              Tutup
+            </button>
+            <button type="button" @click="loadRecordToEdit(submittedRecord)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl transition">
+              Edit Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POPUP DUPLIKAT NIP -->
+    <div v-if="showDuplicateModal && duplicateData" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="bg-amber-500 px-6 py-4 text-white flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+              <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-lg">Data Sudah Ada</h3>
+            </div>
+          </div>
+          <button type="button" @click="closeDuplicateModal" class="text-amber-100 hover:text-white transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <div class="p-5">
+          <p class="text-sm text-slate-600 leading-relaxed">
+            NIP <span class="font-bold text-slate-800">{{ duplicateData.nip }}</span> sudah pernah diinput sebelumnya. Silakan cek kembali data Anda atau pilih tombol <span class="font-semibold text-slate-800">Edit Data</span> jika ingin memperbarui informasi.
+          </p>
+
+          <div class="mt-5 flex gap-2">
+            <button type="button" @click="closeDuplicateModal" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 px-4 rounded-xl transition">
+              Tutup
+            </button>
+            <button type="button" @click="loadRecordToEdit(duplicateData)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl transition">
+              Edit Data
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- POPUP MODAL PILIHAN UPLOAD FILE -->
@@ -628,6 +712,7 @@
             kecamatan: '',
             noHp: ''
           },
+          nipError: '',
           showUploadModal: false,
           uploadMode: 'single',
           modalError: '',
@@ -650,7 +735,11 @@
           },
           isSubmitting: false,
           statusMessage: '',
-          statusType: 'success'
+          statusType: 'success',
+          showSuccessModal: false,
+          showDuplicateModal: false,
+          duplicateData: null,
+          submittedRecord: null
         }
       },
       computed: {
@@ -677,6 +766,83 @@
         }
       },
       methods: {
+        getStoredSubmittedRecords() {
+          try {
+            const raw = localStorage.getItem('sertifikat_submitted_records');
+            return raw ? JSON.parse(raw) : [];
+          } catch (error) {
+            return [];
+          }
+        },
+        saveSubmittedRecord(record) {
+          const items = this.getStoredSubmittedRecords();
+          const existingIndex = items.findIndex(item => String(item.nip || '').replace(/\s+/g, '').toLowerCase() === String(record.nip || '').replace(/\s+/g, '').toLowerCase());
+          if (existingIndex >= 0) {
+            items[existingIndex] = record;
+          } else {
+            items.push(record);
+          }
+          localStorage.setItem('sertifikat_submitted_records', JSON.stringify(items));
+        },
+        findExistingSubmissionByNip(nip) {
+          const normalized = String(nip || '').replace(/\s+/g, '').trim();
+          if (!normalized || normalized === '-') return null;
+          const records = this.getStoredSubmittedRecords();
+          return records.find(item => String(item.nip || '').replace(/\s+/g, '').toLowerCase() === normalized.toLowerCase()) || null;
+        },
+        validateNip(value) {
+          const normalized = String(value || '').replace(/\s+/g, '').trim();
+          if (!normalized || normalized === '-') {
+            this.nipError = '';
+            return true;
+          }
+
+          const digits = normalized.replace(/\D/g, '');
+          const isValid = digits.length === 18 || digits.length === 16;
+
+          this.nipError = isValid ? '' : 'Masukkan dengan format NIP yang benar';
+          return isValid;
+        },
+        handleNipInput() {
+          this.form.nip = String(this.form.nip || '').replace(/\s+/g, '');
+          this.validateNip(this.form.nip);
+        },
+        openSuccessModal(record) {
+          this.submittedRecord = record;
+          this.showSuccessModal = true;
+        },
+        closeSuccessModal() {
+          this.showSuccessModal = false;
+          this.submittedRecord = null;
+        },
+        openDuplicateModal(record) {
+          this.duplicateData = record;
+          this.showDuplicateModal = true;
+        },
+        closeDuplicateModal() {
+          this.showDuplicateModal = false;
+          this.duplicateData = null;
+        },
+        loadRecordToEdit(record) {
+          this.form = {
+            nip: record.nip || '',
+            nama: record.nama || '',
+            jabatan: record.jabatan || '',
+            status: record.status || '',
+            tempatTugas: record.tempatTugas || '',
+            kecamatan: record.kecamatan || '',
+            noHp: record.noHp || ''
+          };
+          this.schoolSearch = record.tempatTugas || '';
+          this.jabatanSearch = record.jabatan || '';
+          if (record.tempatTugas) {
+            this.form.tempatTugas = record.tempatTugas;
+          }
+          this.closeSuccessModal();
+          this.closeDuplicateModal();
+          this.statusType = 'success';
+          this.statusMessage = 'Data lama berhasil dimuat untuk diedit. Silakan ubah dan kirim ulang.';
+        },
         getKecamatanFromSchool(school) {
           if (!school) return '';
           for (const [kecamatan, schools] of Object.entries(this.mappingKecamatan)) {
@@ -856,6 +1022,28 @@
           this.tempFile = { name: '', mimeType: '', base64: '', size: '', category: 'single', certificateCount: 1 };
         },
         async submitForm() {
+          if (!this.validateNip(this.form.nip)) {
+            this.statusType = 'error';
+            this.statusMessage = 'Masukkan dengan format NIP yang benar.';
+            return;
+          }
+
+          const normalizedNip = String(this.form.nip || '').replace(/\s+/g, '').trim();
+          if (normalizedNip && normalizedNip !== '-' && this.findExistingSubmissionByNip(normalizedNip)) {
+            this.openDuplicateModal({
+              nip: normalizedNip,
+              nama: this.form.nama,
+              jabatan: this.form.jabatan,
+              status: this.form.status,
+              tempatTugas: this.form.tempatTugas,
+              kecamatan: this.form.kecamatan,
+              noHp: this.form.noHp,
+              jumlahSertifikat: Number(this.fileInfo.certificateCount) || 1,
+              fileName: this.fileInfo.name || 'Belum ada file'
+            });
+            return;
+          }
+
           if (!this.fileInfo.base64) {
             this.statusType = 'error';
             this.statusMessage = 'Silakan klik tombol pilih & upload file sertifikat terlebih dahulu.';
@@ -871,7 +1059,6 @@
 
           this.isSubmitting = true;
           this.statusMessage = '';
-
 
           const payload = {
             nip: String(this.form.nip),
@@ -900,12 +1087,24 @@
             const result = await response.json();
 
             if (result.status === 'success') {
+              const savedRecord = {
+                ...payload,
+                timestamp: new Date().toISOString(),
+                statusPegawai: payload.status,
+                noHp: payload.noHp,
+                fileUrl: result.fileUrl || '',
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+              };
+
+              this.saveSubmittedRecord(savedRecord);
+              this.submittedRecord = savedRecord;
               this.statusType = 'success';
               this.statusMessage = `Berhasil! Data dan ${payload.jumlahSertifikat} sertifikat Anda telah disimpan ke sistem.`;
               this.form = { nip: '', nama: '', jabatan: '', status: '', tempatTugas: '', kecamatan: '', noHp: '' };
               this.schoolSearch = '';
               this.jabatanSearch = '';
               this.clearFile();
+              this.showSuccessModal = true;
             } else {
               throw new Error(result.message || 'Gagal menyimpan data.');
             }
@@ -915,8 +1114,7 @@
           } finally {
             this.isSubmitting = false;
           }
-        }
-      }
+        }      }
     }).mount('#app');
   </script>
 </body>
