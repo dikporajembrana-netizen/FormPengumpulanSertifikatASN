@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Pengumpulan Sertifikat Pembelajaran Mandiri</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- JSZip untuk inspeksi otomatis jumlah file di dalam ZIP/subfolder -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-100 min-h-screen py-10 px-4 font-sans text-slate-800">
+
+  <div id="app" class="max-w-xl mx-auto">
+    <!-- Header Card -->
+    <div class="bg-blue-700 text-white rounded-t-2xl p-6 shadow-lg">
+      <div class="flex items-center gap-3 mb-2">
+        <img
+          src="kabupaten-jembrana1685699010_8eb98c6b781bd023f580.png"
+          alt="Logo Kabupaten Jembrana"
+          class="h-12 w-12 object-contain rounded-lg bg-white/10 p-1 shadow-sm"
+        >
+        <div>
+          <h1 class="text-xl font-bold tracking-wide">Pengumpulan Sertifikat</h1>
+          <p class="text-blue-100 text-sm">Pembelajaran Mandiri Pegawai / Guru</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Form Card -->
+    <div class="bg-white rounded-b-2xl shadow-lg p-6 md:p-8 border border-slate-200">
+      
+      <!-- Alert Notifikasi -->
+      <div v-if="statusMessage" :class="statusType === 'success' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' : 'bg-red-50 border-red-500 text-red-800'" class="border-l-4 p-4 rounded-r-lg mb-6 flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <i :class="statusType === 'success' ? 'fa-solid fa-circle-check text-emerald-600' : 'fa-solid fa-circle-exclamation text-red-600'" class="text-xl"></i>
+          <div>
+            <p class="font-semibold text-sm">{{ statusType === 'success' ? 'Berhasil!' : 'Terjadi Kesalahan' }}</p>
+            <p class="text-xs mt-0.5">{{ statusMessage }}</p>
+          </div>
+        </div>
+        <button @click="statusMessage = ''" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form @submit.prevent="submitForm" class="space-y-5">
+        <!-- Input NIP -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">NIP <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <i class="fa-solid fa-id-card"></i>
+            </span>
+            <input 
+              type="text" 
+              v-model="form.nip" 
+              required
+              placeholder="Contoh: 198501012010011001"
+              class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+            >
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Ketik NIP tanpa spasi (jika tidak memiliki NIP, isi dengan tanda strip "-" atau NIK).</p>
+        </div>
+
+        <!-- Input Nama Lengkap -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Nama Lengkap & Gelar <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <i class="fa-solid fa-user"></i>
+            </span>
+            <input 
+              type="text" 
+              v-model="form.nama" 
+              required
+              placeholder="Masukkan nama lengkap beserta gelar"
+              class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+            >
+          </div>
+        </div>
+
+        <!-- Input Jabatan -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Jabatan <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 z-10">
+              <i class="fa-solid fa-briefcase"></i>
+            </span>
+            <input
+              type="text"
+              v-model="jabatanSearch"
+              @focus="showJabatanOptions = true"
+              @input="handleJabatanInput"
+              required
+              placeholder="Cari jabatan..."
+              class="w-full pl-10 pr-10 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+            >
+            <button type="button" @click="toggleJabatanDropdown" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-slate-700">
+              <i :class="showJabatanOptions ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"></i>
+            </button>
+
+            <div v-if="showJabatanOptions" class="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-64 overflow-y-auto">
+              <div v-if="filteredJabatan.length" class="py-1.5">
+                <button
+                  v-for="jabatan in filteredJabatan"
+                  :key="jabatan"
+                  type="button"
+                  @click="selectJabatan(jabatan)"
+                  class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                >
+                  {{ jabatan }}
+                </button>
+              </div>
+              <div v-else class="px-3 py-3 text-xs text-slate-500">
+                Tidak ada jabatan yang sesuai dengan pencarian.
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Pilih jabatan Anda dari daftar yang tersedia.</p>
+        </div>
+
+        <!-- Input Status -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Status <span class="text-red-500">*</span></label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <label
+              v-for="option in statusOptions"
+              :key="option.value"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition"
+              :class="form.status === option.value ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+            >
+              <input type="radio" v-model="form.status" :value="option.value" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
+              <span class="text-sm font-medium">{{ option.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Input Tempat Tugas Terbaru -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Tempat Tugas Terbaru <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 z-10">
+              <i class="fa-solid fa-building"></i>
+            </span>
+            <input 
+              type="text" 
+              v-model="schoolSearch"
+              @focus="showSchoolOptions = true"
+              @input="handleSchoolInput"
+              required
+              placeholder="Cari sekolah / tempat tugas..."
+              class="w-full pl-10 pr-10 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+            >
+            <button type="button" @click="toggleSchoolDropdown" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-slate-700">
+              <i :class="showSchoolOptions ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'"></i>
+            </button>
+
+            <div v-if="showSchoolOptions" class="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-64 overflow-y-auto">
+              <div v-if="filteredSchools.length" class="py-1.5">
+                <button
+                  v-for="school in filteredSchools"
+                  :key="school"
+                  type="button"
+                  @click="selectSchool(school)"
+                  class="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition"
+                >
+                  {{ school }}
+                </button>
+              </div>
+              <div v-else class="px-3 py-3 text-xs text-slate-500">
+                Tidak ada sekolah yang sesuai dengan pencarian.
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Pilih sekolah / tempat tugas terbaru Anda dari daftar yang tersedia.</p>
+        </div>
+
+        <!-- Input Kecamatan -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Kecamatan <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <i class="fa-solid fa-map-location-dot"></i>
+            </span>
+            <input
+              type="text"
+              :value="form.kecamatan"
+              disabled
+              required
+              placeholder="Kecamatan otomatis terisi"
+              class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed outline-none text-sm"
+            >
+          </div>
+        </div>
+
+        <!-- Input Nomor HP -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1">Nomor HP / WhatsApp Aktif <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <i class="fa-brands fa-whatsapp"></i>
+            </span>
+            <input 
+              type="tel" 
+              v-model="form.noHp" 
+              required
+              placeholder="Contoh: 081234567890"
+              class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+            >
+          </div>
+        </div>
+
+        <!-- Tombol Pemicu Popup Upload File -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">File Sertifikat <span class="text-red-500">*</span></label>
+          
+          <!-- Jika belum ada file yang dipilih -->
+          <div v-if="!fileInfo.name">
+            <button 
+              type="button" 
+              @click="openUploadModal"
+              class="w-full py-3.5 px-4 border-2 border-dashed border-blue-400 hover:border-blue-600 bg-blue-50/50 hover:bg-blue-50 text-blue-700 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2.5 shadow-sm"
+            >
+              <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+              <span>Pilih & Upload File Sertifikat</span>
+            </button>
+            <p class="text-xs text-slate-400 mt-1.5">Klik tombol di atas untuk memilih upload 1 sertifikat (Satuan) atau banyak sertifikat (ZIP/RAR).</p>
+          </div>
+
+          <!-- Jika file sudah dipilih dari Popup -->
+          <div v-else class="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" :class="fileInfo.category === 'single' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'">
+                <i :class="fileInfo.category === 'single' ? 'fa-solid fa-file-pdf text-lg' : 'fa-solid fa-file-zipper text-lg'"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <span class="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" :class="fileInfo.category === 'single' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-800'">
+                    {{ fileInfo.category === 'single' ? 'Sertifikat Satuan' : 'Arsip ZIP / RAR' }}
+                  </span>
+                  <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                    {{ fileInfo.certificateCount }} Sertifikat
+                  </span>
+                </div>
+                <p class="text-xs font-bold text-slate-800 truncate">{{ fileInfo.name }}</p>
+                <p class="text-[11px] text-slate-500">{{ fileInfo.size }}</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button 
+                type="button" 
+                @click="openUploadModal" 
+                class="px-2.5 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100 rounded-lg transition"
+              >
+                Ganti
+              </button>
+              <button 
+                type="button" 
+                @click="clearFile" 
+                class="p-1.5 text-xs text-red-500 hover:bg-red-100 rounded-lg transition"
+                title="Hapus file"
+              >
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tombol Submit Utama -->
+        <button 
+          type="submit" 
+          :disabled="isSubmitting"
+          class="w-full bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm mt-2"
+        >
+          <i v-if="isSubmitting" class="fa-solid fa-circle-notch fa-spin"></i>
+          <i v-else class="fa-solid fa-paper-plane"></i>
+          <span>{{ isSubmitting ? 'Mengunggah & Menyimpan Data...' : 'Kirim Sertifikat' }}</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- POPUP MODAL PILIHAN UPLOAD FILE -->
+    <div v-if="showUploadModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden">
+        
+        <!-- Header Modal -->
+        <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <i class="fa-solid fa-cloud-arrow-up text-blue-400 text-lg"></i>
+            <h3 class="font-bold text-base">Pilih Jenis Upload Sertifikat</h3>
+          </div>
+          <button type="button" @click="closeUploadModal" class="text-slate-400 hover:text-white transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <!-- Body Modal -->
+        <div class="p-6 space-y-5">
+          <!-- Pilihan 2 Kartu Metode Upload -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <!-- Opsi 1: Satuan -->
+            <div 
+              @click="selectUploadMode('single')"
+              :class="[
+                'p-4 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between',
+                uploadMode === 'single' ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-slate-300 bg-white'
+              ]"
+            >
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-file-lines"></i>
+                  </div>
+                  <i v-if="uploadMode === 'single'" class="fa-solid fa-circle-check text-blue-600 text-lg"></i>
+                </div>
+                <h4 class="font-bold text-sm text-slate-800">Upload File Satuan</h4>
+                <p class="text-xs text-slate-500 mt-1">Gunakan opsi ini jika Anda hanya memiliki <strong>1 sertifikat</strong>.</p>
+              </div>
+              <div class="mt-3 pt-2 border-t border-slate-200/70 flex items-center justify-between text-[11px] font-semibold text-blue-700">
+                <span>PDF, JPG, PNG</span>
+                <span>Maks. 5 MB</span>
+              </div>
+            </div>
+
+            <!-- Opsi 2: ZIP / RAR -->
+            <div 
+              @click="selectUploadMode('archive')"
+              :class="[
+                'p-4 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between',
+                uploadMode === 'archive' ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20' : 'border-slate-200 hover:border-slate-300 bg-white'
+              ]"
+            >
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-file-zipper"></i>
+                  </div>
+                  <i v-if="uploadMode === 'archive'" class="fa-solid fa-circle-check text-amber-600 text-lg"></i>
+                </div>
+                <h4 class="font-bold text-sm text-slate-800">Upload File ZIP / RAR</h4>
+                <p class="text-xs text-slate-500 mt-1">Gunakan opsi ini jika Anda memiliki <strong>lebih dari 1 sertifikat</strong>.</p>
+              </div>
+              <div class="mt-3 pt-2 border-t border-slate-200/70 flex items-center justify-between text-[11px] font-semibold text-amber-700">
+                <span>Format .ZIP / .RAR</span>
+                <span>Maks. 20 MB</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Input Jumlah Sertifikat (Khusus Mode ZIP / RAR) -->
+          <div v-if="uploadMode === 'archive'" class="p-4 rounded-xl bg-amber-50/70 border border-amber-200">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-amber-900">
+                <i class="fa-solid fa-layer-group mr-1 text-amber-600"></i>
+                Jumlah Sertifikat di dalam Arsip <span class="text-red-500">*</span>
+              </label>
+              <span v-if="isScanningZip" class="text-[11px] text-amber-700 font-semibold flex items-center gap-1">
+                <i class="fa-solid fa-spinner fa-spin"></i> Membaca isi ZIP...
+              </span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center border border-amber-300 rounded-lg bg-white overflow-hidden shadow-sm">
+                <button 
+                  type="button" 
+                  @click="tempFile.certificateCount = Math.max(2, (Number(tempFile.certificateCount) || 2) - 1)"
+                  class="px-3 py-1.5 text-slate-600 hover:bg-slate-100 font-bold text-sm"
+                >-</button>
+                <input 
+                  type="number" 
+                  v-model.number="tempFile.certificateCount" 
+                  min="2" 
+                  max="500"
+                  class="w-16 text-center py-1.5 text-sm font-bold text-slate-800 outline-none border-x border-amber-200"
+                >
+                <button 
+                  type="button" 
+                  @click="tempFile.certificateCount = (Number(tempFile.certificateCount) || 2) + 1"
+                  class="px-3 py-1.5 text-slate-600 hover:bg-slate-100 font-bold text-sm"
+                >+</button>
+              </div>
+              <span class="text-xs text-amber-800 leading-tight">
+                File ZIP akan terdeteksi otomatis termasuk berkas di dalam subfolder. Anda juga dapat mengubah angka ini secara manual.
+              </span>
+            </div>
+          </div>
+
+          <!-- Area Input File Berdasarkan Pilihan -->
+          <div v-if="uploadMode" class="pt-1">
+            <div v-if="modalError" class="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>{{ modalError }}</span>
+            </div>
+
+            <label 
+              for="modal-file-input" 
+              class="flex flex-col items-center justify-center px-6 py-5 border-2 border-dashed rounded-xl cursor-pointer transition text-center"
+              :class="uploadMode === 'single' ? 'border-blue-300 bg-blue-50/30 hover:bg-blue-50/70' : 'border-amber-300 bg-amber-50/30 hover:bg-amber-50/70'"
+            >
+              <i :class="uploadMode === 'single' ? 'fa-solid fa-file-arrow-up text-blue-600' : 'fa-solid fa-box-archive text-amber-600'" class="text-3xl mb-2"></i>
+              <span class="text-xs font-bold text-slate-700">
+                Klik untuk memilih {{ uploadMode === 'single' ? 'File Sertifikat Satuan (PDF/Gambar)' : 'File Arsip (.ZIP / .RAR)' }}
+              </span>
+              <span class="text-[11px] text-slate-500 mt-0.5">
+                {{ uploadMode === 'single' ? 'Format yang didukung: .pdf, .jpg, .jpeg, .png (Maks 5 MB)' : 'Seluruh sertifikat dikemas dalam format .zip atau .rar (Maks 20 MB)' }}
+              </span>
+              <input 
+                id="modal-file-input" 
+                type="file" 
+                class="sr-only" 
+                :accept="uploadMode === 'single' ? '.pdf,.jpg,.jpeg,.png' : '.zip,.rar,application/zip,application/x-rar-compressed,application/vnd.rar'"
+                @change="handleFileUpload"
+              >
+            </label>
+
+            <!-- Preview File di dalam Modal -->
+            <div v-if="tempFile.name" class="mt-3 p-3 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
+                <div class="min-w-0">
+                  <p class="text-xs font-bold text-slate-800 truncate">{{ tempFile.name }}</p>
+                  <p class="text-[11px] text-slate-500">{{ tempFile.size }} • <strong>{{ uploadMode === 'single' ? 1 : tempFile.certificateCount }} Sertifikat</strong></p>
+                </div>
+              </div>
+              <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">Siap Diunggah</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Modal -->
+        <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2.5">
+          <button 
+            type="button" 
+            @click="closeUploadModal" 
+            class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition"
+          >
+            Batal
+          </button>
+          <button 
+            type="button" 
+            @click="confirmFileSelection"
+            :disabled="!tempFile.base64 || isScanningZip"
+            class="px-5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white transition shadow-sm"
+          >
+            Gunakan File Ini
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    const daftarJabatanPPPK = [
+      "Guru Ahli Pertama - Golongan IX",
+      "Guru Ahli Pertama - Golongan X",
+      "Pamong Belajar Ahli Pertama - Golongan IX",
+      "Penata Kelola Sistem dan Teknologi Informasi Ahli Pertama - Golongan IX",
+      "Pranata Komputer Ahli Pertama - Golongan IX",
+      "Pranata Komputer Terampil - Golongan VII",
+      "Analis Sumber Daya Manusia Aparatur Ahli Pertama - Golongan IX",
+      "Pranata Sumber Daya Manusia Aparatur Terampil - Golongan VII",
+      "Arsiparis Ahli Pertama - Golongan IX",
+      "Arsiparis Terampil - Golongan VII",
+      "Perencana Ahli Pertama - Golongan IX",
+      "Pengelola Pengadaan Barang/Jasa Ahli Pertama - Golongan IX",
+      "Pengembang Teknologi Pembelajaran Ahli Pertama - Golongan IX",
+      "Penata Kelola Kepemudaan Ahli Pertama - Golongan IX",
+      "Pelatih Olahraga Ahli Pertama - Golongan IX",
+      "Pelatih Olahraga Terampil - Golongan VII",
+      "Penata Layanan Operasional - Golongan IX",
+      "Pengelola Layanan Operasional - Golongan VII",
+      "Pengadministrasi Perkantoran - Golongan V",
+      "Operator Layanan Operasional - Golongan V",
+      "Pengelola Umum Operasional - Golongan I"
+    ];
+
+    const daftarJabatanPNS = [
+      "Kepala Dinas - Golongan IV/c",
+      "Kepala Dinas - Golongan IV/b",
+      "Sekretaris Dinas - Golongan IV/b",
+      "Sekretaris Dinas - Golongan IV/a",
+      "Kepala Bidang - Golongan IV/a",
+      "Kepala Bidang - Golongan III/d",
+      "Kepala Subbagian - Golongan III/d",
+      "Kepala Subbagian - Golongan III/c",
+      "Kepala Seksi / Kepala UPTD - Golongan III/d",
+      "Kepala Seksi / Kepala UPTD - Golongan III/c",
+      "Guru Ahli Pertama - Golongan III/a",
+      "Guru Ahli Pertama - Golongan III/b",
+      "Guru Ahli Muda - Golongan III/c",
+      "Guru Ahli Muda - Golongan III/d",
+      "Guru Ahli Madya - Golongan IV/a",
+      "Guru Ahli Madya - Golongan IV/b",
+      "Guru Ahli Madya - Golongan IV/c",
+      "Guru Ahli Utama - Golongan IV/d",
+      "Guru Ahli Utama - Golongan IV/e",
+      "Pengawas Sekolah Ahli Muda - Golongan III/c",
+      "Pengawas Sekolah Ahli Muda - Golongan III/d",
+      "Pengawas Sekolah Ahli Madya - Golongan IV/a",
+      "Pengawas Sekolah Ahli Madya - Golongan IV/b",
+      "Pengawas Sekolah Ahli Madya - Golongan IV/c",
+      "Pengawas Sekolah Ahli Utama - Golongan IV/d",
+      "Pengawas Sekolah Ahli Utama - Golongan IV/e",
+      "Pamong Belajar Ahli Pertama - Golongan III/a",
+      "Pamong Belajar Ahli Pertama - Golongan III/b",
+      "Pamong Belajar Ahli Muda - Golongan III/c",
+      "Pamong Belajar Ahli Muda - Golongan III/d",
+      "Pamong Belajar Ahli Madya - Golongan IV/a",
+      "Pranata Komputer Ahli Pertama - Golongan III/a",
+      "Pranata Komputer Ahli Pertama - Golongan III/b",
+      "Pranata Komputer Ahli Muda - Golongan III/c",
+      "Pranata Komputer Ahli Muda - Golongan III/d",
+      "Pranata Komputer Ahli Madya - Golongan IV/a",
+      "Analis SDM Aparatur Ahli Pertama - Golongan III/a",
+      "Analis SDM Aparatur Ahli Pertama - Golongan III/b",
+      "Analis SDM Aparatur Ahli Muda - Golongan III/c",
+      "Arsiparis Ahli Pertama - Golongan III/a",
+      "Arsiparis Ahli Pertama - Golongan III/b",
+      "Arsiparis Ahli Muda - Golongan III/c",
+      "Perencana Ahli Pertama - Golongan III/a",
+      "Perencana Ahli Pertama - Golongan III/b",
+      "Perencana Ahli Muda - Golongan III/c",
+      "Pengelola Pengadaan Barang/Jasa Ahli Pertama - Golongan III/a",
+      "Pengembang Teknologi Pembelajaran Ahli Pertama - Golongan III/a",
+      "Penata Kelola Kepemudaan Ahli Pertama - Golongan III/a",
+      "Pelatih Olahraga Ahli Pertama - Golongan III/a",
+      "Pranata Komputer Terampil - Golongan II/c",
+      "Pranata Komputer Terampil - Golongan II/d",
+      "Pranata Komputer Mahir - Golongan III/a",
+      "Pranata Komputer Mahir - Golongan III/b",
+      "Pranata SDM Aparatur Terampil - Golongan II/c",
+      "Arsiparis Terampil - Golongan II/c",
+      "Arsiparis Mahir - Golongan III/a",
+      "Pelatih Olahraga Terampil - Golongan II/c",
+      "Penata Layanan Operasional - Golongan III/a",
+      "Pengelola Layanan Operasional - Golongan II/c",
+      "Pengadministrasi Perkantoran - Golongan II/a",
+      "Operator Layanan Operasional - Golongan II/a",
+      "Pengelola Umum Operasional - Golongan I/a"
+    ];
+
+    const mappingKecamatan = {
+      "Pekutatan": [
+        'SMPN 1 Pekutatan', 'SMPN 2 Pekutatan', 'SDN 1 Medewi', 'SDN 2 Medewi', 'SDN 3 Medewi', 
+        'SDN 4 Medewi', 'SDN 1 Pulukan', 'SDN 2 Pulukan', 'SDN 3 Pulukan', 'SDN 1 Pekutatan', 
+        'SDN 2 Pekutatan', 'SDN 3 Pekutatan', 'SDN 4 Pekutatan', 'SDN 5 Pekutatan', 'SDN Pangyangan', 
+        'SDN 1 Gumrih', 'SDN 2 Gumrih', 'SDN 1 Pengeragoan', 'SDN 2 Pengeragoan', 'SDN 3 Pengeragoan', 
+        'SDN 1 Asahduren', 'SDN 2 Asahduren', 'SDN 3 Asahduren', 'SDN 1 Manggissari', 'SDN 2 Manggissari', 
+        'TK Negeri Pembina Pekutatan'
+      ],
+      "Mendoyo": [
+        'SMPN 1 Mendoyo', 'SMPN 2 Mendoyo', 'SMPN 3 Mendoyo', 'SMPN 4 Mendoyo', 'SMPN 5 Mendoyo',
+        'SDN 1 Mendoyo Dauh Tukad', 'SDN 2 Mendoyo Dauh Tukad', 'SDN 3 Mendoyo Dauh Tukad', 
+        'SDN 1 Mendoyo Dangin Tukad', 'SDN 2 Mendoyo Dangin Tukad', 'SDN 1 Pohsanten', 'SDN 2 Pohsanten', 
+        'SDN 3 Pohsanten', 'SDN 4 Pohsanten', 'SDN 5 Pohsanten', 'SDN 1 Pergung', 'SDN 2 Pergung', 
+        'SDN 3 Pergung', 'SDN 1 Tegalcangkring', 'SDN 2 Tegalcangkring', 'SDN 3 Tegalcangkring', 
+        'SDN 4 Tegalcangkring', 'SDN 5 Tegalcangkring', 'SDN 6 Tegalcangkring', 'SDN Delodbrawah',
+        'SDN 1 Penyaringan', 'SDN 2 Penyaringan', 'SDN 3 Penyaringan', 'SDN 4 Penyaringan', 'SDN 5 Penyaringan',
+        'SDN 6 Penyaringan', 'SDN 7 Penyaringan', 'SDN 8 Penyaringan', 'SDN 9 Penyaringan', 'SDN 1 Yehembang Kauh',
+        'SDN 2 Yehembang Kauh', 'SDN 3 Yehembang Kauh', 'SDN 4 Yehembang Kauh', 'SDN 5 Yehembang Kauh', 
+        'SDN 1 Yehembang', 'SDN 2 Yehembang', 'SDN 3 Yehembang', 'SDN 4 Yehembang', 'SDN 5 Yehembang', 
+        'SDN 6 Yehembang', 'SDN 7 Yehembang', 'SDN 1 Yehembang Kangin', 'SDN 2 Yehembang Kangin', 
+        'SDN 3 Yehembang Kangin', 'SDN 1 Yeh Sumbul', 'SDN 2 Yeh Sumbul', 'SDN 3 Yeh Sumbul', 'TK Negeri Pembina Mendoyo'
+      ],
+      "Jembrana": [
+        'Dinas Pendidikan Kepemudaan Dan Olahraga', 'SMPN 1 Negara', 'SMPN 3 Negara','SMPN 5 Negara','SDN 1 Perancak', 'SDN 2 Perancak', 'SDN 1 Air Kuning', 'SDN 2 Air Kuning', 'SDN 1 Sangkaragung',
+        'SDN 2 Sangkaragung', 'SDN 1 Dangin Tukadaya', 'SDN 2 Dangin Tukadaya', 'SDN 3 Dangin Tukadaya', 
+        'SDN 1 Dauhwaru', 'SDN 2 Dauhwaru', 'SDN 3 Dauhwaru', 'SDN 4 Dauhwaru', 'SDN 5 Dauhwaru', 'SDN 6 Dauhwaru',
+        'SDN 1 Batuagung', 'SDN 2 Batuagung', 'SDN 3 Batuagung', 'SDN 4 Batuagung', 'SDN 5 Batuagung',
+        'SDN 6 Batuagung', 'SDN Budeng', 'SDN 1 Pendem', 'SDN 2 Pendem', 'SDN 3 Pendem', 'SDN 4 Pendem', 
+        'SDN 5 Pendem', 'SDN 6 Pendem', 'SDN 1 Loloan Timur', 'SDN 2 Loloan Timur', 'SDN 3 Loloan Timur', 
+        'SDN 1 Yeh Kuning', 'SDN 2 Yeh Kuning', 'TKN Pembina Jembrana (Sangkaragung)', 'TKN Jembrana (Canang Sari)'
+      ],
+      "Negara": [
+        'SMPN 2 Negara', 'SMPN 4 Negara','SMPN 6 Negara',
+        'SDN 1 Loloan Barat', 'SDN 2 Loloan Barat', 'SDN 1 Baler Bale Agung', 'SDN 2 Baler Bale Agung', 
+        'SDN 3 Baler Bale Agung', 'SDN 4 Baler Bale Agung', 'SDN 5 Baler Bale Agung', 'SDN 1 Banjar Tengah', 
+        'SDN 2 Banjar Tengah', 'SDN 3 Banjar Tengah', 'SDN 1 Lelateng', 'SDN 2 Lelateng', 'SDN 3 Lelateng', 
+        'SDN 4 Lelateng', 'SDN 1 Tegalbadeng Barat', 'SDN 2 Tegalbadeng Barat', 'SDN 3 Tegalbadeng Barat', 
+        'SDN 1 Tegalbadeng Timur', 'SDN 2 Tegalbadeng Timur', 'SDN 1 Cupel', 'SDN 2 Cupel', 'SDN 1 Pengambengan', 
+        'SDN 2 Pengambengan', 'SDN 3 Pengambengan', 'SDN 1 Baluk', 'SDN 2 Baluk', 'SDN 3 Baluk', 'SDN 4 Baluk', 
+        'SDN 5 Baluk', 'SDN 1 Banyubiru', 'SDN 2 Banyubiru', 'SDN 3 Banyubiru', 'SDN 4 Banyubiru', 'SDN 1 Kaliakah', 
+        'SDN 2 Kaliakah', 'SDN 3 Kaliakah', 'SDN 4 Kaliakah', 'SDN 5 Kaliakah', 'SDN 1 Berangbang', 'SDN 2 Berangbang',
+        'SDN 3 Berangbang', 'SDN 4 Berangbang', 'SDN 5 Berangbang', 'TK Negeri Negara', 'TK Negeri Pembina Negara'
+      ],
+      "Melaya": [
+        'SMPN 1 Melaya', 'SMPN 2 Melaya', 'SMPN 3 Melaya', 'SMPN 4 Melaya', 'SMPN 5 Melaya',
+        'SDN 2 Gilimanuk', 'SDN 1 Gilimanuk', 'SDN 3 Gilimanuk', 'SDN 4 Gilimanuk', 'SDN 1 Melaya',
+        'SDN 2 Melaya', 'SDN 3 Melaya', 'SDN 4 Melaya', 'SDN 5 Melaya', 'SDN 6 Melaya', 'SDN 7 Melaya', 
+        'SDN 1 Nusasari', 'SDN 2 Nusasari', 'SDN 1 Ekasari', 'SDN 2 Ekasari', 'SDN 1 Warnasari', 'SDN 2 Warnasari', 
+        'SDN 1 Candikusuma', 'SDN 2 Candikusuma', 'SDN 3 Candikusuma', 'SDN 4 Candikusuma', 'SDN 1 Tuwed', 
+        'SDN 2 Tuwed', 'SDN 3 Tuwed', 'SDN 1 Tukadaya', 'SDN 2 Tukadaya', 'SDN 3 Tukadaya', 'SDN 4 Tukadaya', 
+        'SDN 5 Tukadaya', 'SDN 1 Manistutu', 'SDN 2 Manistutu', 'SDN 3 Manistutu', 'SDN 4 Manistutu', 
+        'SDN 5 Manistutu', 'SDN 6 Manistutu', 'TK Negeri Melaya', 'TK Negeri Pembina Melaya'
+      ]
+    };
+
+    createApp({
+      data() {
+        return {
+          // URL Web App Google Apps Script
+          SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzu456ccR5j5Ec67HeujtGEVfbZJP3ujojZFLLDbVd2pD1IvN48p2ayR4Cp8uyJfZrKMw/exec',
+          kecamatanList: ['Melaya', 'Negara', 'Jembrana', 'Mendoyo', 'Pekutatan'],
+          daftarJabatanPPPK,
+          daftarJabatanPNS,
+          mappingKecamatan,
+          statusOptions: [
+            { value: 'PPPK', label: 'PPPK' },
+            { value: 'PNS', label: 'PNS' },
+            { value: 'PPPK Paruh Waktu', label: 'PPPK Paruh Waktu' }
+          ],
+          schoolSearch: '',
+          showSchoolOptions: false,
+          jabatanSearch: '',
+          showJabatanOptions: false,
+          form: {
+            nip: '',
+            nama: '',
+            jabatan: '',
+            status: '',
+            tempatTugas: '',
+            kecamatan: '',
+            noHp: ''
+          },
+          showUploadModal: false,
+          uploadMode: 'single',
+          modalError: '',
+          isScanningZip: false,
+          tempFile: {
+            name: '',
+            mimeType: '',
+            base64: '',
+            size: '',
+            category: 'single',
+            certificateCount: 1
+          },
+          fileInfo: {
+            name: '',
+            mimeType: '',
+            base64: '',
+            size: '',
+            category: '',
+            certificateCount: 1
+          },
+          isSubmitting: false,
+          statusMessage: '',
+          statusType: 'success'
+        }
+      },
+      computed: {
+        allSchoolOptions() {
+          return Object.values(this.mappingKecamatan).flat();
+        },
+        filteredSchools() {
+          const query = this.schoolSearch.trim().toLowerCase();
+          if (!query) return this.allSchoolOptions;
+          return this.allSchoolOptions.filter((school) => school.toLowerCase().includes(query));
+        },
+        filteredJabatan() {
+          const query = this.jabatanSearch.trim().toLowerCase();
+          let jabatanList = [...this.daftarJabatanPPPK, ...this.daftarJabatanPNS];
+
+          if (this.form.status === 'PNS') {
+            jabatanList = this.daftarJabatanPNS;
+          } else if (this.form.status === 'PPPK' || this.form.status === 'PPPK Paruh Waktu') {
+            jabatanList = this.daftarJabatanPPPK;
+          }
+
+          if (!query) return jabatanList;
+          return jabatanList.filter((jabatan) => jabatan.toLowerCase().includes(query));
+        }
+      },
+      methods: {
+        getKecamatanFromSchool(school) {
+          if (!school) return '';
+          for (const [kecamatan, schools] of Object.entries(this.mappingKecamatan)) {
+            if (schools.includes(school)) return kecamatan;
+          }
+          return '';
+        },
+        toggleSchoolDropdown() {
+          this.showSchoolOptions = !this.showSchoolOptions;
+        },
+        handleSchoolInput() {
+          this.form.tempatTugas = this.schoolSearch;
+          this.form.kecamatan = this.getKecamatanFromSchool(this.schoolSearch) || '';
+          this.showSchoolOptions = true;
+        },
+        selectSchool(school) {
+          this.schoolSearch = school;
+          this.form.tempatTugas = school;
+          this.form.kecamatan = this.getKecamatanFromSchool(school) || '';
+          this.showSchoolOptions = false;
+        },
+        toggleJabatanDropdown() {
+          this.showJabatanOptions = !this.showJabatanOptions;
+        },
+        handleJabatanInput() {
+          this.form.jabatan = this.jabatanSearch;
+          this.showJabatanOptions = true;
+        },
+        selectJabatan(jabatan) {
+          this.jabatanSearch = jabatan;
+          this.form.jabatan = jabatan;
+          this.showJabatanOptions = false;
+        },
+        openUploadModal() {
+          this.modalError = '';
+          if (this.fileInfo.name) {
+            this.uploadMode = this.fileInfo.category;
+            this.tempFile = { ...this.fileInfo };
+          } else {
+            this.uploadMode = 'single';
+            this.tempFile = { name: '', mimeType: '', base64: '', size: '', category: 'single', certificateCount: 1 };
+          }
+          this.showUploadModal = true;
+        },
+        closeUploadModal() {
+          this.showUploadModal = false;
+          this.modalError = '';
+        },
+        selectUploadMode(mode) {
+          if (this.uploadMode !== mode) {
+            this.uploadMode = mode;
+            this.modalError = '';
+            this.tempFile = { 
+              name: '', 
+              mimeType: '', 
+              base64: '', 
+              size: '', 
+              category: mode,
+              certificateCount: mode === 'archive' ? 2 : 1
+            };
+            const inputEl = document.getElementById('modal-file-input');
+            if (inputEl) inputEl.value = '';
+          }
+        },
+        async handleFileUpload(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          this.modalError = '';
+          const fileNameLower = file.name.toLowerCase();
+
+          // Validasi ekstensi & ukuran
+          if (this.uploadMode === 'single') {
+            const validSingleExt = ['.pdf', '.jpg', '.jpeg', '.png'];
+            const isSingleValid = validSingleExt.some(ext => fileNameLower.endsWith(ext));
+            if (!isSingleValid) {
+              this.modalError = 'Format tidak sesuai! Untuk File Satuan, pilih file PDF, JPG, atau PNG.';
+              event.target.value = '';
+              return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+              this.modalError = 'Ukuran file terlalu besar! Maksimal 5 MB untuk sertifikat satuan.';
+              event.target.value = '';
+              return;
+            }
+            this.tempFile.certificateCount = 1;
+          } else if (this.uploadMode === 'archive') {
+            const validArchiveExt = ['.zip', '.rar'];
+            const isArchiveValid = validArchiveExt.some(ext => fileNameLower.endsWith(ext));
+            if (!isArchiveValid) {
+              this.modalError = 'Format tidak sesuai! Silakan pilih file dengan ekstensi .ZIP atau .RAR.';
+              event.target.value = '';
+              return;
+            }
+            if (file.size > 20 * 1024 * 1024) {
+              this.modalError = 'Ukuran arsip terlalu besar! Maksimal 20 MB untuk file ZIP/RAR.';
+              event.target.value = '';
+              return;
+            }
+
+            // Inspeksi berkas otomatis menggunakan JSZip (menembus folder dan subfolder)
+            if (fileNameLower.endsWith('.zip') && window.JSZip) {
+              this.isScanningZip = true;
+              try {
+                const zip = new JSZip();
+                const loadedZip = await zip.loadAsync(file);
+                
+                let validFilesCount = 0;
+                const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+
+                loadedZip.forEach((relativePath, zipEntry) => {
+                  // Abaikan folder, file hidden macOS (__MACOSX/), atau file hidden sistem
+                  if (zipEntry.dir || relativePath.includes('__MACOSX/') || relativePath.split('/').pop().startsWith('.')) {
+                    return;
+                  }
+
+                  const entryLower = relativePath.toLowerCase();
+                  if (validExtensions.some(ext => entryLower.endsWith(ext))) {
+                    validFilesCount++;
+                  }
+                });
+
+                if (validFilesCount > 0) {
+                  this.tempFile.certificateCount = validFilesCount;
+                } else {
+                  this.tempFile.certificateCount = 2;
+                }
+              } catch (err) {
+                console.warn('Gagal membaca isi ZIP secara otomatis:', err);
+                this.tempFile.certificateCount = 2;
+              } finally {
+                this.isScanningZip = false;
+              }
+            } else {
+              // Fallback untuk RAR
+              if (!this.tempFile.certificateCount || this.tempFile.certificateCount < 2) {
+                this.tempFile.certificateCount = 2;
+              }
+            }
+          }
+
+          let detectedMime = file.type;
+          if (!detectedMime) {
+            if (fileNameLower.endsWith('.zip')) detectedMime = 'application/zip';
+            else if (fileNameLower.endsWith('.rar')) detectedMime = 'application/vnd.rar';
+            else detectedMime = 'application/octet-stream';
+          }
+
+          this.tempFile.name = file.name;
+          this.tempFile.mimeType = detectedMime;
+          this.tempFile.size = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+          this.tempFile.category = this.uploadMode;
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            this.tempFile.base64 = e.target.result.split(',')[1];
+          };
+          reader.readAsDataURL(file);
+        },
+        confirmFileSelection() {
+          if (!this.tempFile.base64) return;
+          if (this.uploadMode === 'archive') {
+            const count = parseInt(this.tempFile.certificateCount, 10);
+            if (isNaN(count) || count < 2) {
+              this.modalError = 'Untuk upload ZIP/RAR, jumlah sertifikat minimal adalah 2.';
+              return;
+            }
+            this.tempFile.certificateCount = count;
+          } else {
+            this.tempFile.certificateCount = 1;
+          }
+          this.fileInfo = { ...this.tempFile };
+          this.showUploadModal = false;
+        },
+        clearFile() {
+          this.fileInfo = { name: '', mimeType: '', base64: '', size: '', category: '', certificateCount: 1 };
+          this.tempFile = { name: '', mimeType: '', base64: '', size: '', category: 'single', certificateCount: 1 };
+        },
+        async submitForm() {
+          if (!this.fileInfo.base64) {
+            this.statusType = 'error';
+            this.statusMessage = 'Silakan klik tombol pilih & upload file sertifikat terlebih dahulu.';
+            return;
+          }
+
+          const schoolFolderName = (this.form.tempatTugas || '').trim();
+          if (!schoolFolderName) {
+            this.statusType = 'error';
+            this.statusMessage = 'Silakan pilih tempat tugas / sekolah terlebih dahulu agar folder Google Drive dapat dibuat otomatis.';
+            return;
+          }
+
+          this.isSubmitting = true;
+          this.statusMessage = '';
+
+
+          const payload = {
+            nip: String(this.form.nip),
+            nama: this.form.nama,
+            jabatan: this.form.jabatan,
+            status: this.form.status,
+            tempatTugas: this.form.tempatTugas,
+            kecamatan: this.form.kecamatan,
+            noHp: String(this.form.noHp),
+            sekolahFolderName: schoolFolderName,
+            driveFolderName: schoolFolderName,
+            autoCreateSchoolFolder: true,
+            reuseExistingSchoolFolder: true,
+            fileName: this.fileInfo.name,
+            fileMimeType: this.fileInfo.mimeType,
+            fileData: this.fileInfo.base64,
+            jenisUpload: this.fileInfo.category,
+            jumlahSertifikat: Number(this.fileInfo.certificateCount) || 1
+          };
+
+          try {
+            const response = await fetch(this.SCRIPT_URL, {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+
+            if (result.status === 'success') {
+              this.statusType = 'success';
+              this.statusMessage = `Berhasil! Data dan ${payload.jumlahSertifikat} sertifikat Anda telah disimpan ke sistem.`;
+              this.form = { nip: '', nama: '', jabatan: '', status: '', tempatTugas: '', kecamatan: '', noHp: '' };
+              this.schoolSearch = '';
+              this.jabatanSearch = '';
+              this.clearFile();
+            } else {
+              throw new Error(result.message || 'Gagal menyimpan data.');
+            }
+          } catch (error) {
+            this.statusType = 'error';
+            this.statusMessage = 'Gagal mengirim data: ' + error.message;
+          } finally {
+            this.isSubmitting = false;
+          }
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
