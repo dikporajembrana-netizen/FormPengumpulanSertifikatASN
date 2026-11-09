@@ -1291,119 +1291,19 @@
           this.fileInfo = { name: '', mimeType: '', base64: '', size: '', category: '', certificateCount: 1 };
           this.tempFile = { name: '', mimeType: '', base64: '', size: '', category: 'single', certificateCount: 1 };
         },
-        async handleFileUpload(event) {
-          const file = event.target.files[0];
-          if (!file) return;
-
-          this.modalError = '';
-          const fileNameLower = file.name.toLowerCase();
-
-          if (this.uploadMode === 'single') {
-            const validSingleExt = ['.pdf', '.jpg', '.jpeg', '.png'];
-            const isSingleValid = validSingleExt.some(ext => fileNameLower.endsWith(ext));
-            if (!isSingleValid) {
-              this.modalError = 'Format tidak sesuai! Untuk File Satuan, pilih file PDF, JPG, atau PNG.';
-              event.target.value = '';
-              return;
-            }
-            if (file.size > 5 * 1024 * 1024) {
-              this.modalError = 'Ukuran file terlalu besar! Maksimal 5 MB untuk sertifikat satuan.';
-              event.target.value = '';
-              return;
-            }
-            this.tempFile.certificateCount = 1;
-          } else if (this.uploadMode === 'archive') {
-            const validArchiveExt = ['.zip', '.rar'];
-            const isArchiveValid = validArchiveExt.some(ext => fileNameLower.endsWith(ext));
-            if (!isArchiveValid) {
-              this.modalError = 'Format tidak sesuai! Silakan pilih file dengan ekstensi .ZIP atau .RAR.';
-              event.target.value = '';
-              return;
-            }
-            if (file.size > 20 * 1024 * 1024) {
-              this.modalError = 'Ukuran arsip terlalu besar! Maksimal 20 MB untuk file ZIP/RAR.';
-              event.target.value = '';
-              return;
-            }
-
-            // Deteksi otomatis jumlah sertifikat di dalam arsip ZIP
-            if (fileNameLower.endsWith('.zip') && window.JSZip) {
-              this.isScanningZip = true;
-              try {
-                const zip = new JSZip();
-                const loadedZip = await zip.loadAsync(file);
-                let validFilesCount = 0;
-                const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
-
-                loadedZip.forEach((relativePath, zipEntry) => {
-                  if (zipEntry.dir || relativePath.includes('__MACOSX/') || relativePath.split('/').pop().startsWith('.')) {
-                    return;
-                  }
-                  const entryLower = relativePath.toLowerCase();
-                  if (validExtensions.some(ext => entryLower.endsWith(ext))) {
-                    validFilesCount++;
-                  }
-                });
-
-                if (validFilesCount > 0) {
-                  this.tempFile.certificateCount = validFilesCount;
-                } else {
-                  this.tempFile.certificateCount = 2;
-                }
-              } catch (err) {
-                console.warn('Gagal membaca ZIP, gunakan nilai manual:', err);
-                if (!this.tempFile.certificateCount || this.tempFile.certificateCount < 2) {
-                  this.tempFile.certificateCount = 2;
-                }
-              } finally {
-                this.isScanningZip = false;
-              }
-            } else {
-              if (!this.tempFile.certificateCount || this.tempFile.certificateCount < 2) {
-                this.tempFile.certificateCount = 2;
-              }
-            }
-          }
-
-          let detectedMime = file.type;
-          if (!detectedMime) {
-            if (fileNameLower.endsWith('.zip')) detectedMime = 'application/zip';
-            else if (fileNameLower.endsWith('.rar')) detectedMime = 'application/vnd.rar';
-            else detectedMime = 'application/octet-stream';
-          }
-
-          this.tempFile.name = file.name;
-          this.tempFile.mimeType = detectedMime;
-          this.tempFile.size = (file.size / 1024 / 1024).toFixed(2) + ' MB';
-          this.tempFile.category = this.uploadMode;
-
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            this.tempFile.base64 = e.target.result.split(',')[1];
-          };
-          reader.readAsDataURL(file);
-        },
         retrySubmit() {
           this.showErrorModal = false;
           this.submitForm();
         },
         async submitForm() {
-          // 1. Cek koneksi internet browser terlebih dahulu
-          if (!navigator.onLine) {
-            this.statusType = 'error';
-            this.statusMessage = 'Koneksi internet terputus. Pastikan perangkat Anda terhubung ke internet.';
-            this.showErrorModal = true;
-            return;
-          }
-
-          // 2. Validasi NIP terlebih dahulu
+          // 1. Validasi NIP
           if (!this.validateNip(this.form.nip)) {
             this.statusType = 'error';
             this.statusMessage = 'Masukkan dengan format NIP yang benar.';
             return;
           }
 
-          // 3. Validasi Berkas
+          // 2. Validasi Berkas
           if (!this.fileInfo.base64) {
             this.statusType = 'error';
             this.statusMessage = 'Silakan klik tombol pilih & upload file sertifikat terlebih dahulu.';
@@ -1420,7 +1320,7 @@
             return;
           }
 
-          // 4. RESPONS INSTAN: Nyalakan loading
+          // 3. Nyalakan loading seketika
           this.isSubmitting = true;
           this.statusMessage = '';
 
@@ -1448,19 +1348,12 @@
             originalNip: isEditing ? this.editingNip : null
           };
 
-          // Beri batas waktu hingga 90 detik untuk file berukuran besar
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 90000);
-
           try {
-            // Gunakan metode POST dengan body JSON string murni tanpa custom headers rumit
-            // agar browser tidak memicu CORS Preflight OPTIONS yang sering digagalkan server Google
+            // Gunakan request langsung tanpa blocking header & tanpa AbortController timeout yang membatalkan upload
             const response = await fetch(this.SCRIPT_URL, {
               method: 'POST',
-              body: JSON.stringify(payload),
-              signal: controller.signal
+              body: JSON.stringify(payload)
             });
-            clearTimeout(timeoutId);
 
             const result = await response.json();
 
@@ -1483,7 +1376,7 @@
                 ? 'Data berhasil diperbarui.'
                 : `Berhasil! Data dan ${payload.jumlahSertifikat} sertifikat Anda telah disimpan ke sistem.`);
 
-              // Reset form HANYA jika benar-benar berhasil terkirim
+              // Reset form HANYA jika benar-benar sukses tersimpan
               this.form = { nip: '', nama: '', jabatan: '', status: '', tempatTugas: '', kecamatan: '', noHp: '' };
               this.schoolSearch = '';
               this.jabatanSearch = '';
@@ -1510,11 +1403,9 @@
               throw new Error(result.message || 'Gagal menyimpan data.');
             }
           } catch (error) {
-            clearTimeout(timeoutId);
             console.error('Submission error:', error);
-            // JIKA GAGAL: Jangan kosongkan isian form pengguna!
             this.statusType = 'error';
-            this.statusMessage = 'Data gagal diinput. Silahkan coba lagi dan pastikan internet yang digunakan stabil.';
+            this.statusMessage = 'Gagal mengirim data: ' + (error.message || 'Terjadi gangguan jaringan');
             this.showErrorModal = true;
           } finally {
             this.isSubmitting = false;
