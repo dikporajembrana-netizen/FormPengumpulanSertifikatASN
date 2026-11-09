@@ -486,49 +486,6 @@
       </div>
     </div>
 
-    <!-- POPUP NOTIFIKASI GAGAL KIRIM -->
-    <div v-if="showErrorModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div class="bg-white rounded-[2.5rem] max-w-md w-full shadow-2xl border border-white overflow-hidden flex flex-col">
-        <div class="bg-[#FF5A22] px-6 py-5 text-white flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-              <i class="fa-solid fa-triangle-exclamation text-xl text-white"></i>
-            </div>
-            <div>
-              <span class="text-[10px] uppercase tracking-[0.2em] text-white/80 font-extrabold">Pengiriman Terkendala</span>
-              <h3 class="font-black text-lg">Gagal Mengirim Data</h3>
-            </div>
-          </div>
-          <button type="button" @click="showErrorModal = false" class="w-8 h-8 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition">
-            <i class="fa-solid fa-xmark text-sm"></i>
-          </button>
-        </div>
-
-        <div class="p-6 bg-[#F3F6F4]">
-          <div class="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs mb-4 text-center">
-            <div class="w-12 h-12 mx-auto rounded-full bg-[#FF5A22]/10 text-[#FF5A22] flex items-center justify-center text-xl mb-2.5">
-              <i class="fa-solid fa-wifi"></i>
-            </div>
-            <p class="text-xs text-slate-700 leading-relaxed font-bold">
-              Data gagal diinput. Berkas dan data formulir Anda belum tersimpan ke sistem.
-            </p>
-            <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">
-              Silakan periksa kembali koneksi internet Anda agar stabil, lalu tekan tombol <strong>Coba Kirim Ulang</strong> di bawah. Data isian Anda tidak hilang.
-            </p>
-          </div>
-
-          <div class="flex gap-2">
-            <button type="button" @click="showErrorModal = false" class="flex-1 bg-white hover:bg-slate-100 text-slate-700 font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition text-xs">
-              Tutup & Cek Form
-            </button>
-            <button type="button" @click="retrySubmit" class="flex-1 accent-btn text-white font-black py-2.5 px-4 rounded-xl shadow-sm transition text-xs flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-rotate-right"></i> Coba Kirim Ulang
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- POPUP MODAL PILIHAN UPLOAD FILE -->
     <div v-if="showUploadModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
       <div class="bg-white rounded-[2.5rem] max-w-lg w-full shadow-2xl border border-white overflow-hidden flex flex-col">
@@ -906,7 +863,6 @@
           statusType: 'success',
           showSuccessModal: false,
           showDuplicateModal: false,
-          showErrorModal: false,
           duplicateData: null,
           submittedRecord: null,
           isLoadingEditData: false,
@@ -1291,10 +1247,6 @@
           this.fileInfo = { name: '', mimeType: '', base64: '', size: '', category: '', certificateCount: 1 };
           this.tempFile = { name: '', mimeType: '', base64: '', size: '', category: 'single', certificateCount: 1 };
         },
-        retrySubmit() {
-          this.showErrorModal = false;
-          this.submitForm();
-        },
         async submitForm() {
           // 1. Validasi NIP
           if (!this.validateNip(this.form.nip)) {
@@ -1349,13 +1301,23 @@
           };
 
           try {
-            // Gunakan request langsung tanpa blocking header & tanpa AbortController timeout yang membatalkan upload
+            // Gunakan text/plain agar browser tidak mengirim preflight OPTIONS yang diblokir oleh Google Apps Script
             const response = await fetch(this.SCRIPT_URL, {
               method: 'POST',
+              headers: {
+                'Content-Type': 'text/plain;charset=utf-8'
+              },
               body: JSON.stringify(payload)
             });
 
-            const result = await response.json();
+            const textResponse = await response.text();
+            let result;
+            try {
+              result = JSON.parse(textResponse);
+            } catch (jsonErr) {
+              // Jika respon bukan JSON, coba evaluasi teks pesan
+              throw new Error('Respon server tidak valid atau deployment Apps Script belum dibuka untuk umum (Anyone).');
+            }
 
             if (result.status === 'success' || result.status === 'updated') {
               const savedRecord = {
@@ -1406,7 +1368,8 @@
             console.error('Submission error:', error);
             this.statusType = 'error';
             this.statusMessage = 'Gagal mengirim data: ' + (error.message || 'Terjadi gangguan jaringan');
-            this.showErrorModal = true;
+            // Scroll ke atas agar user melihat banner notifikasi error
+            window.scrollTo({ top: 0, behavior: 'smooth' });
           } finally {
             this.isSubmitting = false;
           }
