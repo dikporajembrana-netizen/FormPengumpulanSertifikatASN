@@ -4,23 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Form Pengumpulan Sertifikat Pembelajaran Mandiri</title>
-
-  <!-- Preconnect CDN untuk mempercepat DNS & TCP Handshake -->
-  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-  <link rel="preconnect" href="https://unpkg.com" crossorigin>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
-  <link rel="dns-prefetch" href="https://unpkg.com">
-  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
-
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <!-- Muat JSZip langsung agar deteksi berkas ZIP selalu siap & stabil -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- JSZip untuk inspeksi otomatis jumlah file di dalam ZIP/subfolder -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <!-- FontAwesome Non-Blocking agar LCP tidak terhambat -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
-
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
     :root {
       --bg-base: #F3F6F4;
@@ -29,7 +17,6 @@
     }
     body {
       background-color: var(--bg-base);
-      font-display: swap;
     }
     .wavy-gradient-hero {
       background: linear-gradient(135deg, #5B6E2C 0%, #465522 55%, #38451b 100%);
@@ -38,12 +25,6 @@
       background: rgba(255, 255, 255, 0.92);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
-    }
-    .fluid-card {
-      border-radius: 2rem;
-      border: 1px solid rgba(255, 255, 255, 0.95);
-      box-shadow: 0 14px 35px -8px rgba(91, 110, 44, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .primary-btn {
       background-color: #5B6E2C;
@@ -61,17 +42,6 @@
       background-color: #e64a15;
       transform: translateY(-1px);
     }
-    .scrollbar-theme-h::-webkit-scrollbar {
-      height: 6px;
-    }
-    .scrollbar-theme-h::-webkit-scrollbar-track {
-      background: #F3F6F4;
-      border-radius: 9999px;
-    }
-    .scrollbar-theme-h::-webkit-scrollbar-thumb {
-      background: #5B6E2C;
-      border-radius: 9999px;
-    }
   </style>
 </head>
 <body class="min-h-screen py-8 sm:py-12 px-4 font-sans text-slate-800 antialiased selection:bg-[#FF5A22] selection:text-white relative overflow-x-hidden">
@@ -84,7 +54,6 @@
   <div id="app" class="w-full max-w-6xl mx-auto relative z-10 px-2 sm:px-4 lg:px-6">
     <!-- Header Card -->
     <div class="wavy-gradient-hero text-white rounded-t-[2.2rem] lg:rounded-t-[2.8rem] p-6 sm:p-8 lg:p-10 shadow-xl relative overflow-hidden">
-      <!-- Decorative Background Waves -->
       <svg class="absolute inset-0 w-full h-full opacity-10 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" preserveAspectRatio="none">
         <path fill="#ffffff" fill-opacity="1" d="M0,192L48,197.3C96,203,192,213,288,197.3C384,181,480,139,576,144C672,149,768,203,864,208C960,213,1056,171,1152,149.3C1248,128,1344,128,1392,128L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
       </svg>
@@ -94,15 +63,10 @@
           <img
             src="kabupaten-jembrana1685699010_8eb98c6b781bd023f580.png"
             alt="Logo Kabupaten Jembrana"
-            width="56"
-            height="56"
-            fetchpriority="high"
-            loading="eager"
-            decoding="async"
             class="h-14 w-14 object-contain rounded-2xl bg-white/15 p-1.5 border border-white/20 shadow-inner"
           >
           <div>
-            <span class="text-[10px] sm:text-xs uppercase font-bold tracking-[0.2em] text-emerald-200 block">Sistem Formulir Terpadu</span>
+            <span class="text-[10px] sm:text-xs uppercase font-bold tracking-[0.2em] text-emerald-200 block">SISTEM FORMULIR TERPADU</span>
             <h1 class="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white leading-tight">Pengumpulan Sertifikat</h1>
             <p class="text-emerald-100/90 text-xs sm:text-sm mt-0.5">Pembelajaran Mandiri Pegawai & Guru Kabupaten Jembrana</p>
           </div>
@@ -133,7 +97,7 @@
       </div>
 
       <form @submit.prevent="submitForm">
-        <!-- Grid 2 Kolom di Layar Lebar (Tablet/Desktop) & 1 Kolom di Layar Handphone -->
+        <!-- Grid 2 Kolom di Layar Lebar & 1 Kolom di Layar Handphone -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
           
           <!-- SISI KIRI: Biodata Pegawai & Status -->
@@ -387,10 +351,9 @@
                 :disabled="isSubmitting" 
                 class="w-full primary-btn text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-lg transition flex items-center justify-center gap-2 text-xs sm:text-sm disabled:opacity-50 relative overflow-hidden"
               >
-                <div v-if="isSubmitting" class="absolute inset-0 bg-white/10 animate-pulse"></div>
                 <i v-if="isSubmitting" class="fa-solid fa-circle-notch fa-spin text-sm"></i>
                 <i v-else class="fa-solid fa-paper-plane text-sm"></i>
-                <span class="relative z-10">{{ isSubmitting ? 'Mengirim langsung ke Drive & Sheet...' : 'Kirim Sertifikat Sekarang' }}</span>
+                <span>{{ isSubmitting ? 'Mengunggah & Menyimpan Data...' : 'Kirim Sertifikat Sekarang' }}</span>
               </button>
             </div>
           </div>
@@ -400,7 +363,7 @@
     </div>
 
     <!-- POPUP NOTIFIKASI SUKSES -->
-    <div v-if="showSuccessModal && submittedRecord" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+    <div v-if="showSuccessModal && submittedRecord" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-[2.5rem] max-w-lg w-full shadow-2xl border border-white overflow-hidden flex flex-col">
         <div class="wavy-gradient-hero px-6 py-5 text-white flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -452,7 +415,7 @@
     </div>
 
     <!-- POPUP DUPLIKAT NIP -->
-    <div v-if="showDuplicateModal && duplicateData" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+    <div v-if="showDuplicateModal && duplicateData" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-[2.5rem] max-w-md w-full shadow-2xl border border-white overflow-hidden flex flex-col">
         <div class="bg-[#FF5A22] px-6 py-5 text-white flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -487,7 +450,7 @@
     </div>
 
     <!-- POPUP MODAL PILIHAN UPLOAD FILE -->
-    <div v-if="showUploadModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+    <div v-if="showUploadModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-[2.5rem] max-w-lg w-full shadow-2xl border border-white overflow-hidden flex flex-col">
         
         <!-- Header Modal -->
@@ -813,7 +776,6 @@
     createApp({
       data() {
         return {
-          // PASTIKAN URL INI SAMA DENGAN DEPLOYMENT DI SPREADSHEET YANG KAMU BUKA
           SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw6n6OAFnY9h-XTQOXXfMZA-ppvsyzCt0jXopNoABmwigBk2AJdLiTaXVOWIc1dn0BBZg/exec',
           kecamatanList: ['Melaya', 'Negara', 'Jembrana', 'Mendoyo', 'Pekutatan'],
           daftarJabatanPPPK,
@@ -870,9 +832,6 @@
           editingNip: ''
         }
       },
-      created() {
-        this.clearStaleLocalSubmissionCache();
-      },
       computed: {
         allSchoolOptions() {
           return Object.values(this.mappingKecamatan).flat();
@@ -909,7 +868,6 @@
           const items = this.getStoredSubmittedRecords();
           const existingIndex = items.findIndex(item => String(item.nip || '').replace(/\s+/g, '').toLowerCase() === String(record.nip || '').replace(/\s+/g, '').toLowerCase());
           
-          // Buat salinan tanpa menyertakan fileData base64 agar tidak melebihi kuota localStorage
           const safeRecord = { ...record };
           delete safeRecord.fileData;
 
@@ -921,36 +879,8 @@
           try {
             localStorage.setItem('sertifikat_submitted_records', JSON.stringify(items));
           } catch (e) {
-            console.warn('Storage quota exceeded, caching without heavy data:', e);
+            console.warn('Storage quota exceeded:', e);
           }
-        },
-        clearStaleLocalSubmissionCache() {
-          try {
-            localStorage.removeItem('sertifikat_submitted_records');
-          } catch (error) {
-            // abaikan
-          }
-        },
-        async findExistingSubmissionByNip(nip) {
-          const normalized = String(nip || '').replace(/\s+/g, '').trim();
-          if (!normalized || normalized === '-') return null;
-
-          try {
-            const response = await fetch(this.SCRIPT_URL, { method: 'GET' });
-            const result = await response.json();
-            const rows = Array.isArray(result?.data) ? result.data : [];
-            const serverMatch = rows.find((item) => {
-              const savedNip = String(item?.nip || '').replace(/^'/, '').replace(/\s+/g, '').trim();
-              return savedNip && savedNip.toLowerCase() === normalized.toLowerCase();
-            });
-
-            if (serverMatch) return serverMatch;
-          } catch (error) {
-            // fallback
-          }
-
-          const records = this.getStoredSubmittedRecords();
-          return records.find(item => String(item.nip || '').replace(/\s+/g, '').toLowerCase() === normalized.toLowerCase()) || null;
         },
         validateNip(value) {
           const normalized = String(value || '').replace(/\s+/g, '').trim();
@@ -1046,9 +976,7 @@
             }
 
             this.statusType = 'success';
-            this.statusMessage = serverRecord
-              ? 'Mode edit aktif. Data berhasil dimuat dari sistem berdasarkan NIP. Silakan ubah dan kirim ulang.'
-              : 'Mode edit aktif. Data lama berhasil dimuat untuk diedit. Silakan ubah dan kirim ulang.';
+            this.statusMessage = 'Mode edit aktif. Silakan ubah data dan kirim ulang.';
           } else {
             this.form = {
               nip: fallbackRecord.nip || '',
@@ -1248,14 +1176,12 @@
           this.tempFile = { name: '', mimeType: '', base64: '', size: '', category: 'single', certificateCount: 1 };
         },
         async submitForm() {
-          // 1. Validasi NIP
           if (!this.validateNip(this.form.nip)) {
             this.statusType = 'error';
             this.statusMessage = 'Masukkan dengan format NIP yang benar.';
             return;
           }
 
-          // 2. Validasi Berkas
           if (!this.fileInfo.base64) {
             this.statusType = 'error';
             this.statusMessage = 'Silakan klik tombol pilih & upload file sertifikat terlebih dahulu.';
@@ -1272,7 +1198,6 @@
             return;
           }
 
-          // 3. Nyalakan loading seketika
           this.isSubmitting = true;
           this.statusMessage = '';
 
@@ -1301,23 +1226,11 @@
           };
 
           try {
-            // Gunakan text/plain agar browser tidak mengirim preflight OPTIONS yang diblokir oleh Google Apps Script
             const response = await fetch(this.SCRIPT_URL, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'text/plain;charset=utf-8'
-              },
               body: JSON.stringify(payload)
             });
-
-            const textResponse = await response.text();
-            let result;
-            try {
-              result = JSON.parse(textResponse);
-            } catch (jsonErr) {
-              // Jika respon bukan JSON, coba evaluasi teks pesan
-              throw new Error('Respon server tidak valid atau deployment Apps Script belum dibuka untuk umum (Anyone).');
-            }
+            const result = await response.json();
 
             if (result.status === 'success' || result.status === 'updated') {
               const savedRecord = {
@@ -1338,7 +1251,6 @@
                 ? 'Data berhasil diperbarui.'
                 : `Berhasil! Data dan ${payload.jumlahSertifikat} sertifikat Anda telah disimpan ke sistem.`);
 
-              // Reset form HANYA jika benar-benar sukses tersimpan
               this.form = { nip: '', nama: '', jabatan: '', status: '', tempatTugas: '', kecamatan: '', noHp: '' };
               this.schoolSearch = '';
               this.jabatanSearch = '';
@@ -1365,11 +1277,8 @@
               throw new Error(result.message || 'Gagal menyimpan data.');
             }
           } catch (error) {
-            console.error('Submission error:', error);
             this.statusType = 'error';
-            this.statusMessage = 'Gagal mengirim data: ' + (error.message || 'Terjadi gangguan jaringan');
-            // Scroll ke atas agar user melihat banner notifikasi error
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            this.statusMessage = 'Gagal mengirim data: ' + error.message;
           } finally {
             this.isSubmitting = false;
           }
