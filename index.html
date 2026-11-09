@@ -15,6 +15,8 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Muat JSZip langsung agar deteksi berkas ZIP selalu siap & stabil -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <!-- FontAwesome Non-Blocking agar LCP tidak terhambat -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
@@ -100,9 +102,9 @@
             class="h-14 w-14 object-contain rounded-2xl bg-white/15 p-1.5 border border-white/20 shadow-inner"
           >
           <div>
-            <span class="text-[10px] sm:text-xs uppercase font-bold tracking-[0.2em] text-emerald-200 block">DINAS PENDIDIKAN KEPEMUDAAN DAN OLAHRAGA KABUPATEN JEMBRANA</span>
+            <span class="text-[10px] sm:text-xs uppercase font-bold tracking-[0.2em] text-emerald-200 block">Sistem Formulir Terpadu</span>
             <h1 class="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white leading-tight">Pengumpulan Sertifikat</h1>
-            <p class="text-emerald-100/90 text-xs sm:text-sm mt-0.5">Pembelajaran Mandiri Pegawai & Guru Kabupaten Jembrana Tahun 2026</p>
+            <p class="text-emerald-100/90 text-xs sm:text-sm mt-0.5">Pembelajaran Mandiri Pegawai & Guru Kabupaten Jembrana</p>
           </div>
         </div>
 
@@ -1289,16 +1291,6 @@
           this.fileInfo = { name: '', mimeType: '', base64: '', size: '', category: '', certificateCount: 1 };
           this.tempFile = { name: '', mimeType: '', base64: '', size: '', category: 'single', certificateCount: 1 };
         },
-        async ensureJSZipLoaded() {
-          if (window.JSZip) return true;
-          return new Promise((resolve) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-            script.onload = () => resolve(true);
-            script.onerror = () => resolve(false);
-            document.head.appendChild(script);
-          });
-        },
         async handleFileUpload(event) {
           const file = event.target.files[0];
           if (!file) return;
@@ -1334,37 +1326,35 @@
               return;
             }
 
-            if (fileNameLower.endsWith('.zip')) {
+            // Deteksi otomatis jumlah sertifikat di dalam arsip ZIP
+            if (fileNameLower.endsWith('.zip') && window.JSZip) {
               this.isScanningZip = true;
               try {
-                await this.ensureJSZipLoaded();
-                if (window.JSZip) {
-                  const zip = new JSZip();
-                  const loadedZip = await zip.loadAsync(file);
-                  
-                  let validFilesCount = 0;
-                  const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+                const zip = new JSZip();
+                const loadedZip = await zip.loadAsync(file);
+                let validFilesCount = 0;
+                const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
 
-                  loadedZip.forEach((relativePath, zipEntry) => {
-                    if (zipEntry.dir || relativePath.includes('__MACOSX/') || relativePath.split('/').pop().startsWith('.')) {
-                      return;
-                    }
-
-                    const entryLower = relativePath.toLowerCase();
-                    if (validExtensions.some(ext => entryLower.endsWith(ext))) {
-                      validFilesCount++;
-                    }
-                  });
-
-                  if (validFilesCount > 0) {
-                    this.tempFile.certificateCount = validFilesCount;
-                  } else {
-                    this.tempFile.certificateCount = 2;
+                loadedZip.forEach((relativePath, zipEntry) => {
+                  if (zipEntry.dir || relativePath.includes('__MACOSX/') || relativePath.split('/').pop().startsWith('.')) {
+                    return;
                   }
+                  const entryLower = relativePath.toLowerCase();
+                  if (validExtensions.some(ext => entryLower.endsWith(ext))) {
+                    validFilesCount++;
+                  }
+                });
+
+                if (validFilesCount > 0) {
+                  this.tempFile.certificateCount = validFilesCount;
+                } else {
+                  this.tempFile.certificateCount = 2;
                 }
               } catch (err) {
-                console.warn('Gagal membaca isi ZIP secara otomatis:', err);
-                this.tempFile.certificateCount = 2;
+                console.warn('Gagal membaca ZIP, gunakan nilai manual:', err);
+                if (!this.tempFile.certificateCount || this.tempFile.certificateCount < 2) {
+                  this.tempFile.certificateCount = 2;
+                }
               } finally {
                 this.isScanningZip = false;
               }
@@ -1458,21 +1448,19 @@
             originalNip: isEditing ? this.editingNip : null
           };
 
-          // Batasi waktu timeout maksimal 45 detik agar form tidak hang jika jaringan bermasalah
+          // Beri batas waktu hingga 90 detik untuk file berukuran besar
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 45000);
+          const timeoutId = setTimeout(() => controller.abort(), 90000);
 
           try {
+            // Gunakan metode POST dengan body JSON string murni tanpa custom headers rumit
+            // agar browser tidak memicu CORS Preflight OPTIONS yang sering digagalkan server Google
             const response = await fetch(this.SCRIPT_URL, {
               method: 'POST',
               body: JSON.stringify(payload),
               signal: controller.signal
             });
             clearTimeout(timeoutId);
-
-            if (!response.ok) {
-              throw new Error(`Koneksi server gagal (Status: ${response.status})`);
-            }
 
             const result = await response.json();
 
@@ -1523,6 +1511,7 @@
             }
           } catch (error) {
             clearTimeout(timeoutId);
+            console.error('Submission error:', error);
             // JIKA GAGAL: Jangan kosongkan isian form pengguna!
             this.statusType = 'error';
             this.statusMessage = 'Data gagal diinput. Silahkan coba lagi dan pastikan internet yang digunakan stabil.';
